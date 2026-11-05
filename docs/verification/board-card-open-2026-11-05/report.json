@@ -3,7 +3,7 @@
   "project": "flowly",
   "title": "看板卡片补齐可访问名称，让 UI 自动化验证可定位",
   "secondTitle": "修复 discovery 测试在高负载下因扫描时间预算截断而偶发失败",
-  "date": "2026-11-05T06:31:27.569Z",
+  "date": "2026-11-05T06:36:52.058Z",
   "script": "docs/verification/board-card-open-2026-11-05/run.mjs",
   "command": "/opt/homebrew/Cellar/node/26.13.0_1/bin/node /Users/jianfengyang/.paseo/worktrees/0h1iy7r3/kanban-ui-22ac11/docs/verification/board-card-open-2026-11-05/run.mjs --shot",
   "passed": true,
@@ -12,37 +12,37 @@
       "run": 1,
       "title": "看板卡片补齐可访问名称，让 UI 自动化验证可定位",
       "ok": true,
-      "ms": 1705
+      "ms": 809
     },
     {
       "run": 2,
       "title": "看板卡片补齐可访问名称，让 UI 自动化验证可定位",
       "ok": true,
-      "ms": 326
+      "ms": 312
     },
     {
       "run": 3,
       "title": "看板卡片补齐可访问名称，让 UI 自动化验证可定位",
       "ok": true,
-      "ms": 489
+      "ms": 299
     },
     {
       "run": 4,
       "title": "看板卡片补齐可访问名称，让 UI 自动化验证可定位",
       "ok": true,
-      "ms": 316
+      "ms": 300
     },
     {
       "run": 5,
       "title": "看板卡片补齐可访问名称，让 UI 自动化验证可定位",
       "ok": true,
-      "ms": 301
+      "ms": 299
     },
     {
       "run": "second-card",
       "title": "修复 discovery 测试在高负载下因扫描时间预算截断而偶发失败",
       "ok": true,
-      "ms": 350
+      "ms": 318
     }
   ],
   "pageErrors": []
