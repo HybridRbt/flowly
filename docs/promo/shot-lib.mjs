@@ -92,9 +92,11 @@ async function clickLeaf(page, text, { minX = 0, maxX = Infinity, yMax = 160, ti
   return false;
 }
 
-// Open Paseo, enter the Flowly project `project` (default Tinylink). Returns a session; `clip` excludes the sidebar.
+// Open Paseo, enter the Flowly project `project`. Returns a session; `clip` excludes the sidebar.
 // The Flowly entry is clicked inside the host sidebar and the project tab inside the plugin tab row, both by exact
-// text in that band only, and each wait-or-fail: open() never silently continues on the wrong screen or project.
+// text in that band only. A project without an open tab is entered through the "All projects" chooser (its rows are
+// buttons named by project title). Every step waits or fails: open() never silently continues on the wrong screen
+// or project.
 export async function open(browser, { w, h, scheme = 'light', locale = 'en-US', project = 'Tinylink', url = 'https://app.paseo.sh' }) {
   const context = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, colorScheme: scheme, locale });
   await context.grantPermissions(['local-network-access'], { origin: url });
@@ -104,8 +106,16 @@ export async function open(browser, { w, h, scheme = 'light', locale = 'en-US', 
   await page.goto(url, { waitUntil: 'networkidle', timeout: 45000 });
   if (!(await clickLeaf(page, 'Flowly', { maxX: SIDEBAR_WIDTH - 20, yMax: 400, timeout: 20000 })))
     throw new Error('Flowly entry not found in the host sidebar');
-  if (!(await clickLeaf(page, project, { minX: SIDEBAR_WIDTH, yMax: 160, timeout: 20000 })))
-    throw new Error(`Project tab "${project}" not found in the Flowly tab row`);
+  if (!(await clickLeaf(page, project, { minX: SIDEBAR_WIDTH, yMax: 160, timeout: 8000 }))) {
+    // No open tab for the project: switch through the project chooser.
+    await page.locator('button[aria-label^="All projects"]').first().click({ timeout: 8000 });
+    // The chooser's rows are buttons whose accessible name is the project title; exact match keeps
+    // "flowly" from matching "flowly-test" and never touches the board's "Open task …" cards.
+    const row = page.getByRole('button', { name: project, exact: true }).last();
+    await row.click({ timeout: 15000 });
+    if (!(await clickLeaf(page, project, { minX: SIDEBAR_WIDTH, yMax: 160, timeout: 15000 })))
+      throw new Error(`Project "${project}" did not become the open project after choosing it`);
+  }
   // Lanes (any locale) prove the project's board rendered; cards' names carry the locale's text.
   await page.waitForSelector('[data-testid^="lane-"], [data-testid^="card-"], [aria-label^="Open task"]', { timeout: 45000 });
   await page.waitForTimeout(3500);
@@ -125,13 +135,19 @@ export async function openCard(s, title, { timeout = 15000 } = {}) {
   return card;
 }
 
-// Close the card sidebar (Esc on desktop web) and wait until it stops taking pointers.
-export async function closeCard(s, { timeout = 15000 } = {}) {
-  await s.page.keyboard.press('Escape');
-  await s.page.waitForFunction(() => {
+// Close the card sidebar (Esc on desktop web, then the Close button) and wait until it stops taking pointers.
+export async function closeCard(s, { timeout = 15000, closeLabel = 'Close side bar' } = {}) {
+  const closed = () => s.page.waitForFunction(() => {
     const drawer = document.querySelector('[data-testid="task-drawer-motion"]');
     return !drawer || drawer.style.pointerEvents === 'none';
   }, null, { timeout });
+  await s.page.keyboard.press('Escape');
+  try {
+    await closed();
+  } catch {
+    await s.page.locator(`button[aria-label="${closeLabel}"]`).first().click({ timeout });
+    await closed();
+  }
 }
 
 // Screenshot to `path`. An explicit clip is in page coordinates but is never allowed to reach into the sidebar.
