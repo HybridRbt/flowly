@@ -158,6 +158,8 @@ GitHub 和 GitLab 上的“全站搜索”结果太杂。daemon 从卡片所在�
 
 非 git 族（Jira/Confluence/Azure/Shortcut）没有仓库概念，不校验。校验不依赖搜索范围：从“我参与的”范围或链接 / `owner/repo#nr` 直查选中的条目同样经过校验。粘贴路径的判定是纯解析：条目是否存在仍由 daemon 在提交时决定，识别不出（含裸 key 在多个 git 连接间歧义）、非 git 条目与文件路径直接提交，不受影响；`member`、`unknown` 与 RPC 失败同样保持沉默。编辑既有条目不校验（target 添加后固定）。
 
+agent 挂接路径（2026-11-05，同日补上）：agent 经 `flowly_add_artifact` 或交付 `outputs` 登记的条目由 daemon 在识别后做同一判定（共享核心 `repoMembership`，repo 从条目 key 用 `splitRepoKey` 推出，repo-check RPC 也走它）。`foreign` 不阻断登记，工具结果带非阻断 `notice`（英文、agent 可读，点名条目 key、项目名与其他拥有项目），agent 应转达用户；`member`、`unknown`（含项目无 git remote、连接读取失败）与非 git 条目沉默。
+
 ## 5. GitLab
 
 - **连接**：地址（默认 `https://gitlab.com`，自建如 `https://git.garena.com`）；Personal Access Token，权限 `read_api`（只读）；请求头 `PRIVATE-TOKEN`。校验 `GET /api/v4/user`，账户显示 `name (@username)`。
@@ -268,7 +270,7 @@ GitLab issue 或 MR…     （有 GitLab 连接时）
 
 - 每个 adapter 用 mock fetch：链接识别（含多级 group、子页面、锚点、tiny link、`/display/`）、裸 key、白名单之外的路径直接抛错、只发 GET、错误映射（GitHub 限流 403 不算凭据失效、GitLab 403、Confluence 登录页）、Markdown 渲染与截断、指纹（状态/标签变化不算，新 commit 算）。
 - storage → Markdown 转换器单测（代码宏、表格、info 宏、ac:link、图片）。
-- 项目仓库范围：remote 解析（ssh/https 两种写法、多 remote、symlink 子仓库）、host 不匹配时忽略；建卡/挂接校验 `repoVerdict`（大小写不敏感；空 `container` 或项目仓库为空 → `unknown` 不警告）；粘贴路径的 `gitRepoTarget` 判定（GitHub/GitLab 链接与唯一连接的裸 key 取到 repo；非 git 族、Confluence 页、文件路径、歧义裸 key 不触发）。
+- 项目仓库范围：remote 解析（ssh/https 两种写法、多 remote、symlink 子仓库）、host 不匹配时忽略；建卡/挂接校验 `repoVerdict`（大小写不敏感；空 `container` 或项目仓库为空 → `unknown` 不警告）；粘贴路径的 `gitRepoTarget` 判定（GitHub/GitLab 链接与唯一连接的裸 key 取到 repo；非 git 族、Confluence 页、文件路径、歧义裸 key 不触发）；`repoMembership`（member 沉默、foreign 点名拥有项目 ≤3、归档项目不算、unknown 不警告）与 agent 路径 notice 端到端（`flowly_add_artifact` 与交付 outputs）。
 - 凭据：RPC 返回、日志、工具输出不含令牌。
 - 联调：按用户提供的令牌在 git.garena.com 与公司 Confluence 做只读验证（令牌由用户在设置页填写，agent 不接触），GitHub 用公共仓库与用户私有仓库各一个条目。
 - 按项目要求，用 full-access 的 `codex/gpt-6-luna` session 做 UI 验收（桌面与手机布局、+ 菜单、选择器、预览、删除连接后恢复），证据存 `docs/verification/connectors.md`。

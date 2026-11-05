@@ -3,6 +3,7 @@
 ## 2026-11-05 “文件或链接…”表单粘贴 git 条目同样校验仓库归属（card “文件或链接表单粘贴 GitHub/GitLab 条目链接时同样校验仓库归属”）
 
 - 补上 [CONNECTORS-SPEC §4.3](CONNECTORS-SPEC.md#43-项目仓库范围github--gitlab) 上一卡留出的粘贴路径：Artifacts 的“文件或链接…”表单提交前，客户端用与 daemon 识别同一套纯解析判定粘贴值是否为 GitHub/GitLab 条目——`shared/connectors.ts` 新增 `gitRepoTarget`（`externalTarget` 定位连接与 key，git 族再用 `splitRepoKey` 取 repo；不发网络请求，条目存在与否仍由 daemon 在提交时决定），再复用 `useRepoCheck`/`ForeignRepoWarning`（`client/task-artifacts.tsx` 的 `ArtifactForm`：foreign 先警告，“仍然添加”后才提交，取消回到表单）。至此三条挂接路径（建卡、挂接选择器、粘贴）行为一致。
+- 同日追加（采纳想法）：agent 路径——`flowly_add_artifact` 与交付 `outputs` 登记的条目在 daemon 识别后做同一判定；§4.3 核心抽成 `repoMembership`（repo-check RPC 与 agent notice 共用），`server/agent-service.ts` 的 `foreignRepoNotice` 在 foreign 时于工具结果带非阻断英文 notice（点名条目、项目与拥有项目），member/unknown/非 git/读取失败沉默；工具描述与 skill 文案注明转达用户。
 - 沉默路径不变：member、unknown（项目仓库为空/container 空/RPC 失败）、非 git 条目、文件路径与识别不出的值（含多 git 连接间歧义的裸 key）直接提交；编辑既有条目不校验（target 添加后固定）。“仍然添加”沿用上一卡已加的目录词条，无新字符串。
 - 引导：不改导览、不加 tip（同上一卡：警告即提示，无新入口）；What's new 不加（1.9.0 条目已覆盖该能力）；遥测不加字段。
 - 已运行/未运行：见卡片 workpad。

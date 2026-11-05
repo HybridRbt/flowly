@@ -1,5 +1,7 @@
 import { afterEach, expect, test } from "vitest";
-import { readFile, rm, writeFile, stat } from "node:fs/promises";
+import { readFile, rm, writeFile, stat, mkdir } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { dirname, join } from "node:path";
 import { AgentService } from "./agent-service";
 import { BoardStore } from "./store";
 import { ToolSecrets, digest } from "./tool-context";
@@ -1080,6 +1082,64 @@ test("outputs: inappropriate action/kind and malformed lists refuse without writ
     await expect(deliver(x, { outputs })).rejects.toThrow();
   }
   expect(await readFile(x.store.path, "utf8")).toBe(before);
+});
+
+test("agent artifact: a git item foreign to the card's project warns in the tool result; member and non-git items stay silent", async () => {
+  const x = await setup();
+  // The card's project has only acme/own on the connection's host; another project has acme/other.
+  const git = (args: string[]) => new Promise<void>((resolve, reject) => execFile("git", args, (e) => (e ? reject(e) : resolve())));
+  const project = (await x.store.read()).projects[0]!;
+  const otherRoot = join(dirname(x.store.path), "other-project");
+  await mkdir(otherRoot);
+  await Promise.all([
+    git(["init", project.primaryPath]),
+    git(["init", otherRoot]),
+  ]);
+  await Promise.all([
+    git(["-C", project.primaryPath, "remote", "add", "origin", "https://github.com/acme/own.git"]),
+    git(["-C", otherRoot, "remote", "add", "origin", "https://github.com/acme/other.git"]),
+  ]);
+  const stamp = new Date().toISOString();
+  await x.store.mutate((board) => {
+    board.projects.push({
+      id: "q", paseoProjectId: "native2", title: "Other project", description: "", primaryPath: otherRoot, repos: [otherRoot],
+      revision: 1, createdAt: stamp, updatedAt: stamp, archivedAt: null,
+    });
+  });
+  const foreignUrl = "https://github.com/acme/other/issues/1";
+  const memberUrl = "https://github.com/acme/own/issues/2";
+  const jiraUrl = "https://jira.example.com/browse/AB-1";
+  const externalOf = (key: string, provider = "github") => ({ connectionId: "c1", provider, key, remoteId: "1", itemType: "issue" });
+  const items = new Map([
+    [foreignUrl, externalOf("acme/other#1")],
+    [memberUrl, externalOf("acme/own#2")],
+    [jiraUrl, externalOf("AB-1", "jira-cloud")],
+  ]);
+  x.service.connectors = {
+    recognize: async (t: string) => {
+      const external = items.get(t);
+      return external ? { url: t, external, title: "Item" } : null;
+    },
+    locate: async () => new Map(),
+    connections: { get: async () => ({ baseUrl: "https://github.com" }) },
+  } as unknown as NonNullable<AgentService["connectors"]>;
+
+  // flowly_add_artifact: foreign warns and names the owning project; member and Jira stay silent.
+  const add = async (target: string) => {
+    const ctx = await x.service.get(x.identity);
+    return x.service.write(x.identity, "artifact", { expectedRevision: ctx.revision, request: ctx.request, role: "input", target });
+  };
+  const foreign = await add(foreignUrl);
+  expect(foreign.notice).toContain("acme/other#1 does not belong to Project's repositories");
+  expect(foreign.notice).toContain("the card's workspace will not contain it");
+  expect(foreign.notice).toContain("It belongs to Other project's repositories.");
+  expect(await add(memberUrl)).not.toHaveProperty("notice");
+  expect(await add(jiraUrl)).not.toHaveProperty("notice");
+
+  // The same §4.3 notice rides a delivery's recognized output.
+  const delivered = await deliver(x, { outputs: [{ target: foreignUrl }] });
+  expect(delivered.notice).toContain("does not belong to Project's repositories");
+  expect((await x.store.read()).artifacts.filter((a) => a.external)).toHaveLength(3);
 });
 
 test("outputs: recognized external keeps output role; unreadable private metadata still saves the explicit URL", async () => {

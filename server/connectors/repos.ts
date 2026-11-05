@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { remoteRepo } from "../../shared/connectors";
+import type { Project } from "../../shared/model";
 import { findRepos } from "../git-stats";
 
 /**
@@ -49,4 +50,27 @@ export function repoVerdict(container: string, repos: readonly string[]): RepoVe
   const repo = container.trim().toLowerCase();
   if (!repo || !repos.length) return "unknown";
   return repos.some((r) => r.trim().toLowerCase() === repo) ? "member" : "foreign";
+}
+
+/**
+ * CONNECTORS-SPEC §4.3: `repo` vs a project's repositories, plus the other live
+ * projects that have it (at most 3, the repo-check RPC's `others`). `reposOf` is
+ * injectable for tests and defaults to the cached `projectRepos`.
+ */
+export async function repoMembership(
+  repo: string,
+  project: Pick<Project, "id" | "primaryPath">,
+  others: readonly Pick<Project, "id" | "primaryPath" | "title" | "archivedAt">[],
+  baseUrl: string,
+  reposOf: (root: string, baseUrl: string) => Promise<string[]> = projectRepos,
+): Promise<{ state: RepoVerdict; owners: { id: string; title: string }[] }> {
+  const state = repoVerdict(repo, await reposOf(project.primaryPath, baseUrl).catch(() => []));
+  if (state !== "foreign") return { state, owners: [] };
+  const owners: { id: string; title: string }[] = [];
+  for (const other of others) {
+    if (other.id === project.id || other.archivedAt || owners.length >= 3) continue;
+    if (repoVerdict(repo, await reposOf(other.primaryPath, baseUrl).catch(() => [])) === "member")
+      owners.push({ id: other.id, title: other.title });
+  }
+  return { state, owners };
 }

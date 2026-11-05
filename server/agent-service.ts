@@ -16,10 +16,11 @@ import { artifactRoots, dropArtifact, externalArtifact, missingArtifacts, normal
 import { ArtifactReadStore } from "./artifact-reads";
 import { ExternalError } from "./connectors/http";
 import { ExternalReadStore, refKey, type ConnectorService } from "./connectors/service";
-import { familyOf, itemTypeOf } from "../shared/connectors";
+import { repoMembership } from "./connectors/repos";
+import { familyOf, itemTypeOf, splitRepoKey, type ExternalRef } from "../shared/connectors";
 import { join } from "node:path";
 import { hostname } from "node:os";
-import type { Artifact, GitHead, NextMove, Workpad } from "../shared/model";
+import type { Artifact, GitHead, NextMove, Project, Workpad } from "../shared/model";
 import { projectScripts } from "./workflow-insights";
 import { mergeWorkpad, openItemLines, openItems, plansOf, validationFreshness, workpadEnabled, workpadNote, workpadOf, workpadUpdatedAction } from "../shared/workpad";
 import { defaultGit, readHead, resolveCommit, type Git } from "./workpad";
@@ -434,6 +435,26 @@ export class AgentService {
     }
     return resolved;
   }
+  /**
+   * CONNECTORS-SPEC §4.3: the notice when an agent registers a git-family item
+   * whose repository is foreign to the card's project — names the item and the
+   * project, and the other projects that have the repository. Member, unknown,
+   * non-git items and failed lookups never nag (undefined).
+   */
+  private async foreignRepoNotice(external: ExternalRef | undefined, project: Project, board: Board): Promise<string | undefined> {
+    try {
+      const family = external ? familyOf(external.provider) : null;
+      const repo = external && (family === "github" || family === "gitlab") ? splitRepoKey(external.key)?.repo : undefined;
+      if (!external || !repo || !this.connectors) return undefined;
+      const connection = await this.connectors.connections.get(external.connectionId);
+      const { state, owners } = await repoMembership(repo, project, board.projects, connection.baseUrl);
+      if (state !== "foreign") return undefined;
+      const owned = owners.length ? ` It belongs to ${owners.map((o) => o.title).join(", ")}'s repositories.` : "";
+      return `${external.key} does not belong to ${project.title}'s repositories; the card's workspace will not contain it.${owned}`;
+    } catch {
+      return undefined;
+    }
+  }
   async write(
     identity: ToolIdentity,
     action: "status" | "progress" | "idea" | "idea_update" | "idea_remove" | "remember" | "artifact" | "artifact_remove" | "tags" | "type" | "next_moves" | "workpad",
@@ -491,6 +512,7 @@ export class AgentService {
     if (outputs?.length && !priorReceipt) {
       if (!artifactsOn)
         throw new ToolError("ARTIFACTS_DISABLED", "Agent artifacts are turned off in Flowly settings. List your deliverables in your reply and deliver with outputs=[] instead.");
+      const board = await this.store.read();
       for (const output of outputs) {
         try {
           let external;
@@ -503,6 +525,8 @@ export class AgentService {
             if (!(e instanceof ExternalError) || !/^https?:\/\//i.test(output.target)) throw e;
             notice = "External details could not be read; no external status or content was verified.";
           }
+          const repoNote = await this.foreignRepoNotice(external?.external, resources.project, board);
+          if (repoNote) notice = [notice, repoNote].filter(Boolean).join(" ");
           const target = external ?? await normalizeTarget(output.target, artifactRoots(resources.task, resources.project, resources.workspace.workspaceDirectory));
           outputTargets.push({ ...output, ...target, title: output.title || external?.title, ...(notice ? { notice } : {}) });
         } catch (e) {
@@ -518,6 +542,11 @@ export class AgentService {
             throw new ToolError("ARTIFACT_INVALID", e instanceof Error ? e.message : String(e));
           })
         : null;
+    // A git item foreign to the card's project warns in the tool result (CONNECTORS-SPEC §4.3).
+    const artifactRepoNotice =
+      externalTarget?.external && !priorReceipt
+        ? await this.foreignRepoNotice(externalTarget.external, resources.project, await this.store.read())
+        : undefined;
     const artifactTarget =
       action === "artifact" && artifactsOn
         ? externalTarget
@@ -732,7 +761,7 @@ export class AgentService {
                   new Date(this.clock()).toISOString(),
                 );
                 artifactId = put.artifact.id;
-                notice = put.notice;
+                notice = [put.notice, artifactRepoNotice].filter(Boolean).join("\n") || undefined;
                 return { id: put.eventId ?? "", at: new Date(this.clock()).toISOString() };
               }
               const dropped = dropArtifact(this.store, board, (input as ArtifactRemovalInput).id, {

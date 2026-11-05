@@ -74,7 +74,7 @@
 
 新增两个 MCP 工具（CLI 同步提供 `artifact` / `artifact-remove` 子命令），都遵循现有签名 request + expectedRevision 协议，幂等，不改 task revision：
 
-- `flowly_add_artifact`：`{ expectedRevision, request, role, target, title?, note? }`。`kind` 由 target 推断（`http(s)://` 为 url，`file://` 与其余为 file）。重复 target 时更新该条的 role/title/note（仅当该条由 agent 添加，任一 session；人添加的保持不变，返回已有那条，回执 `eventId` 为空；此时若请求的 role 与已有的不同，结果带 `notice`：“Already added by the user as <role>; role not changed. …”，回执同样保存它，重放时原样返回）。结果带 `artifactId`。路径错误返回 `ARTIFACT_INVALID`。
+- `flowly_add_artifact`：`{ expectedRevision, request, role, target, title?, note? }`。`kind` 由 target 推断（`http(s)://` 为 url，`file://` 与其余为 file）。重复 target 时更新该条的 role/title/note（仅当该条由 agent 添加，任一 session；人添加的保持不变，返回已有那条，回执 `eventId` 为空；此时若请求的 role 与已有的不同，结果带 `notice`：“Already added by the user as <role>; role not changed. …”，回执同样保存它，重放时原样返回）。登记为 GitHub/GitLab 条目且其仓库不属于本项目仓库时，结果另带 §4.3（CONNECTORS-SPEC）的仓库归属 `notice`（不阻断；交付 `outputs` 里的条目同样）。结果带 `artifactId`。路径错误返回 `ARTIFACT_INVALID`。
 - `flowly_remove_artifact`：`{ expectedRevision, request, id }`。只能移除 agent 添加的产物（任一 session 均可，因为同卡的 session 共享工作）；人添加的拒绝：`ARTIFACT_FORBIDDEN` “Only the user can remove artifacts they added.”
 
 工具描述要点（写进 description 与 skill）：
