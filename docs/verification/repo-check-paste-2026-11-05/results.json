@@ -1,0 +1,51 @@
+{
+  "results": [
+    {
+      "id": "F0",
+      "ok": true,
+      "detail": "flowly project board is open"
+    },
+    {
+      "id": "F0a",
+      "ok": true,
+      "detail": "artifacts section open; card had no rows"
+    },
+    {
+      "id": "F1",
+      "ok": true,
+      "detail": "foreign PR paste -> warn (expected warn)"
+    },
+    {
+      "id": "F2",
+      "ok": true,
+      "detail": "warning names item/project/owner (true); Cancel returns to the form (true)"
+    },
+    {
+      "id": "F3",
+      "ok": true,
+      "detail": "Add anyway adds the foreign item (row in list: true, modal closed: true)"
+    },
+    {
+      "id": "F4",
+      "ok": true,
+      "detail": "test artifact removed, no residue"
+    },
+    {
+      "id": "F5",
+      "ok": true,
+      "detail": "own-repo PR paste -> row (expected row, no warning)"
+    },
+    {
+      "id": "F6",
+      "ok": true,
+      "detail": "non-git link paste -> row (expected row, no warning)"
+    },
+    {
+      "id": "F7",
+      "ok": true,
+      "detail": "no artifacts left behind"
+    }
+  ],
+  "errors": [],
+  "logs": []
+}

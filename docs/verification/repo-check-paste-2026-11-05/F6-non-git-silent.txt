@@ -1,0 +1,203 @@
+Flowly
+flowly
+Attention
+Sort
+Filter
+New task
+11
+tasks
+· 5 done
+1 running
+Blocked
+3
+Ideas 3
+Memory
+Insights
+No tasks
+Blocked
+3
+High
+Feature
+flowly#1 +2
+#conversation-ui
+#session-composer
+Recognize ui blocks in flowly's session preview
+上游 PR #82 已开，CI 待 jaspr_w 批准，等待上游合并发布
+11h ago
+1
+Checks 6/6
+High
+Chore
+flowly#3 +1
+#a11y
+#testing
+看板卡片补齐可访问名称，让 UI 自动化验证可定位
+上游 PR #84 已创建并完成 CodeRabbit 修复，等上游批准合并
+10h ago
+1
+Checks 6/6
+2
+High
+Feature
+#connectors
+#cards
+Warn when a card's GitHub/GitLab item does not belong to the current project
+桌面实机走查完成，可跑项全部通过，证据已推送，等上游合并 PR #83
+10h ago
+1
+Checks 4/4
+Done
+5
+High
+Research
+#genui
+#conversation-ui
++1
+对话渲染有问题
+Diagnosis delivered In review, including Flowly sidebar behavior
+14h ago
+Wrapped up
+Checks 5/5
+Bug fix
+paseo-sync#4
+#sync
+#git-plugins
+Skip dirty Git plugins at apply with disclosed repair guidance
+整个堆叠的 PR 链条已合并；卡片可以移动至 Done
+12h ago
+Wrapped up
+Checks 6/6
+Low
+Bug fix
+paseo-sync#9
+#sync
+修复 discovery 测试在高负载下因扫描时间预算截断而偶发失败
+PR #9 reviewed, CI green, merged to main (df5464d)
+11h ago
+Wrapped up
+Checks 3/3
+Bug fix
+better-paseo#19
+#conversation-ui
+#genui
+better-paseo: defer ui/app fences so genui can render them
+Task delivered In review; official better-paseo restored, awaiting upstream PR #19 merge
+11h ago
+Wrapped up
+Checks 3/3
+High
+Research
+#language
+“建议的下一步”适配中文
+Investigation done: no code change needed, fix is a settings change
+10h ago
+Wrapped up
+Checks 4/4
+1
+Cancelled
+0
+No tasks
+flowly
+Warn when a card's GitHub/GitLab item does not belong to the current project
+Blocked
+High
+Feature
+#connectors
+#cards
+Add
+From idea on
+Skip dirty Git plugins at apply with disclosed repair guidance
+In the New task form and the attach-to-card picker, when the picked externals include a GitHub/GitLab item whose repository (ExternalSummary.container) is not in projectRepos(currentProject, connection) (server/connectors/repos.ts), show a non-blocking warning naming the item and the project — e.g. "HybridRbt/paseo-sync#4 does not belong to this project's repositories. Create it here anyway?" — before the card is created/attached. Stay silent when projectRepos returns an empty list (cannot verify; do not nag) and for Jira/Confluence/Azure/Shortcut items (no repository notion). Optional, if cheap: hint which other project's repositories contain the item. Acceptance: creating a card for a foreign GitHub PR on a board shows the warning; items from the project's own repositories show none; non-git items are unaffected; the check also fires when a link or owner/repo#nr query bypasses the "This project's repositories" search scope; every new string is in all catalogs.
+Why: A card created from a GitHub item on the wrong board locks its workspace to the wrong repo root: on 2026-11-05 a paseo-sync PR card was created in the flowly project (wrong project picked when creating the card from GitHub), and the session had to hunt the real checkout outside the card workspace to do the work. The repo mapping already exists and is cached (projectRepos, already scoping connector search); only the creation-time cross-check is missing. The "Everything I'm involved in" search scope and direct links/owner-repo#nr queries are exactly the paths that bypass the project scope today.
+Context:
+Repo: this flowly repository. Key code: client/forms.tsx (New task form; externals state ~L475, create payload with externals ~L563-566); client/connectors.tsx (ExternalPicker ~L187-300; "Search in" scope Choices ~L258-267 with values project/all; attach-to-card via rpc.createArtifact ~L341-348); server/connectors/repos.ts (projectRepos(root, baseUrl) — git remotes of the project root and first-level child repos, 5-min cache); server/connectors/service.ts:132+333 (existing projectRepos wiring, search scoping); shared/connectors.ts:99 (ExternalSummary.container carries the item's owner/repo); spec docs/CONNECTORS-SPEC.md §4.3 (project repository scope). Follow the repo rules: spec update first, t() + every catalog for new UI strings, say in the delivery note whether onboarding/tips are unaffected.
+From card: Skip dirty Git plugins at apply with disclosed repair guidance (f3d8ae81-ae8a-44a5-ba37-36c96b1b6545)
+Source progress:
+针对 paseo-sync PR #4 的 codex 审查反馈进行修复：在应用时为被跳过的脏 Git 插件保留基准条目。
+•
+仅跳过的应用保留先前针对被跳过脏插件的基准条目
+•
+混合应用将排除的条目（插件/设置/补丁）合并回基准
+•
+通过共享的 preserveSkippedBaseline 辅助函数镜像主分支的发布端修复
+•
+分支与 origin/main 合并；PR 基础分支重定向至 main
+•
+PR #4 已合并至主分支 (d0e6264) 及基准保留修复 960b556
+•
+堆叠链已完全合并：restore 会话合并了 main，然后是 PR #7 (d0ffea0) 和 PR #5 (22ab2ae)
+•
+无剩余同步操作；卡片可以移动至 Done
+•
+已提交想法卡片：当连接器项不属于当前项目时发出警告
+Progress
+Refresh
+桌面实机走查完成，可跑项全部通过，证据已推送，等上游合并 PR #83
+Recap
+- Spec 更新（CONNECTORS-SPEC）+ RPC connectors.repo-check + client 警告组件已实现
+- typecheck 与 1225 测试全过，i18n 目录齐全，What's new 1.9.0 已加
+- 桌面走查 A1-A3/B/D1/C1-C3 实机全部通过，证据推到 PR 分支
+- 非 git 族沉默与手机端未实测；安装已恢复原状，等上游合并 #83
+Next
+等上游批准 CI 并合并 PR #83；随后跟进 CodeRabbit 复审意见（如有）。
+Show more
+Updated 10h ago
+·
+Haiku 5.5
+Sessions
+1
+Start session
+Warn when a card's GitHub/GitLab item does not belong to the current project
+Turn ended
+· claude · opus[1m]
+10h ago
+Workpad
+MacBook-Air-Silver.local:~/.paseo/worktrees/0h1iy7r3/kanban-warn-when-a-card-s-github-gitlab-item-do@e91818f*
+Updated 10h ago by Warn when a card's GitHub/GitLab item does not belong to the current project
+Acceptance
+docs/CONNECTORS-SPEC.md updated first: creation/attach-time repo cross-check behavior, silence rules (empty projectRepos, non-git providers), acceptance criteria
+Creating a card for a foreign GitHub/GitLab PR/issue (container not in projectRepos(currentProject, connection)) on a board shows a non-blocking warning naming the item and the project before the card is created
+Items from the project's own repositories show no warning
+Jira/Confluence/Azure/Shortcut items never trigger the warning
+When projectRepos returns an empty list the check stays silent (cannot verify)
+Show 3 more
+Checks
+Typecheck passes on the final rebased tree
+npm run typecheck
+@e91818f · 10h ago
+Show output
+Full test suite passes (includes i18n catalog completeness)
+npm test
+@e91818f · 10h ago
+Show output
+Focused tests for repoVerdict pass (case-insensitive member, foreign, unknown on empty)
+npx vitest run server/connectors/repos.test.ts
+@e91818f · 10h ago
+Show output
+Desktop UI walkthrough via local swap install (dbcb59c): foreign new-card warning + cancel/confirm, attach-picker warning/link/cleanup, member silent on both projects — all PASS, no residue
+paseo plugin remove flowly && paseo plugin install <card worktree> --id flowly (backup first); Playwright + docs/promo/shot-lib.mjs
+@e91818f · 10h ago
+Show output
+Confusions
+AGENTS.md 的 Git 流程按仓库所有者视角写（admin push、auto merge、registry 提交）；用户澄清上游 JasprW/flowly 不属于自己，本机 origin 是 fork HybridRbt/flowly，CI 工作流批准与合并都在上游侧。已按此调整：等上游合并 PR #83 后随新版安装验证，不做 auto-merge/admin 尝试。
+Artifacts
+1
+Inputs
+example.com/paste-check
+example.com
+Ideas
+0
+All ideas
+No open ideas. Agents add them when they see a worthwhile next step.
+Closed · 1
+Memory
+Remembered from this card: 1
+Links
+2
+Details & workspace
+Warn when a card's GitHub/GitLab item does not belong to the current project
+Usage
+33.7M tokens · 98.6% cached · 3 turns
+Activity
+36
+Artifact added
