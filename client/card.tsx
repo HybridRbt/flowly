@@ -14,6 +14,7 @@ import { shallowEqual } from "./stable";
 import { t, tn } from "../shared/i18n";
 import type { WorkpadSignal } from "../shared/workpad";
 import { activityLines, defaultCardDisplay, type CardDisplay } from "../shared/card-display";
+import { taskCardLabel, workpadText } from "./card-label";
 import { BrandIcon } from "./brand-icons";
 import type { ConnectorFamily } from "../shared/connectors";
 
@@ -77,6 +78,7 @@ export function TaskCard({
   selected,
   legacy,
   available,
+  lane,
   wrapped = false,
   running,
   sessions,
@@ -105,6 +107,8 @@ export function TaskCard({
   selected: boolean;
   legacy: boolean;
   available: boolean;
+  /** The lane's display name for the accessible name (UI-UX-SPEC §2, automation names). */
+  lane?: string;
   /** Done/Cancelled and wrapped up: its workspace is archived on purpose, not missing. */
   wrapped?: boolean;
   running: number;
@@ -260,22 +264,26 @@ export function TaskCard({
       {live && <RunningDots radius={radius.lg - 1} color={colors.accent} seed={task.id} />}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={[
-          t("Open task {title}", { title: task.title }),
-          questions ? tn(questions, "Needs you: {n} open question", "Needs you: {n} open questions") : "",
-          ideas ? tn(ideas, "{n} idea", "{n} ideas") : "",
-          waiting ? tn(waiting, "Waiting on {n} card: {waitingTitles}", "Waiting on {n} cards: {waitingTitles}", { waitingTitles }) : "",
-          progress ? t("Progress: {state}", { state: progress.state }) : "",
-          workpad ? workpadText(workpad) : "",
-          attentionDismissed ? t("Dismissed from Attention") : "",
-          [t("{priority} priority", { priority: priorityLabels[task.priority] }), task.type ? taskTypeLabels[task.type] : "", task.archivedAt ? t("archived") : "", legacy ? t("legacy scope") : ""].filter(Boolean).join(", "),
-          summaryState === "ready" && summary
-            ? t("{running} running, {finished} finished turns, {unread} unread sessions, {attention} need attention", { running: summary.running, finished: summary.finished, unread: summary.unread, attention: summary.attention })
-            : "",
-          output ? t(outputTime ? "Latest agent output {time}: {text}" : "Latest agent output: {text}", { time: outputTime ?? "", text: output.text.length > 80 ? output.text.slice(0, 80) + "…" : output.text }) : "",
-        ]
-          .filter(Boolean)
-          .join(". ") + "."}
+        testID={`card-${task.id}`}
+        accessibilityLabel={taskCardLabel({
+          title: task.title,
+          lane,
+          questions,
+          ideas,
+          waiting,
+          waitingTitles,
+          progress: progress ?? null,
+          workpad: workpad ?? null,
+          attentionDismissed,
+          priority: task.priority,
+          type: task.type,
+          archivedAt: task.archivedAt,
+          legacy,
+          summaryState,
+          summary,
+          output: output ?? null,
+          outputTime,
+        })}
         {...(menu || {})}
         accessibilityHint={
           drag
@@ -567,20 +575,4 @@ function Meta({ label, icon, text, color }: { label: string; icon: ReactNode; te
       </Label>
     </View>
   );
-}
-
-/** The card's workpad signal (WORKPAD-SPEC §6.1). */
-function workpadText(signal: WorkpadSignal) {
-  switch (signal.kind) {
-    case "delivered":
-      return tn(signal.count, "Delivered with {n} open item", "Delivered with {n} open items");
-    case "failed":
-      return t("Checks {done}/{total} · {failed} failed", { done: signal.done, total: signal.total, failed: signal.count });
-    case "stale":
-      return t("Checks {done}/{total} · out of date", { done: signal.done, total: signal.total });
-    case "checks":
-      return t("Checks {done}/{total}", { done: signal.done, total: signal.total });
-    case "acceptance":
-      return t("Acceptance {done}/{total}", { done: signal.done, total: signal.total });
-  }
 }
