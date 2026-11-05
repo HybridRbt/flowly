@@ -458,6 +458,23 @@ export function externalTarget(value: string, connections: readonly Pick<Connect
   return matches.length === 1 ? matches[0]! : null;
 }
 
+/**
+ * The git-family repository a pasted "file or link" value names, for the §4.3
+ * repo check before that form submits: the connection that would own the item
+ * and the repository its key belongs to. Pure parsing like `externalTarget`;
+ * whether the item exists stays the daemon's call at submit.
+ */
+export function gitRepoTarget(value: string, connections: readonly Pick<Connection, "id" | "provider" | "baseUrl">[]) {
+  const match = externalTarget(value, connections);
+  if (!match || !("key" in match)) return null;
+  const connection = connections.find((c) => c.id === match.connectionId);
+  if (!connection) return null;
+  const family = familyOf(connection.provider);
+  if (family !== "github" && family !== "gitlab") return null;
+  const repo = splitRepoKey(match.key)?.repo || "";
+  return repo ? { connectionId: match.connectionId, family, key: match.key, repo } : null;
+}
+
 /** What a picker search box holds (EXTERNAL-TRACKER-SPEC §5.2, CONNECTORS-SPEC §5–§7). */
 export type ExternalQuery =
   | { kind: "recent" }

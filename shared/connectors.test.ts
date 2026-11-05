@@ -3,6 +3,7 @@ import {
   classifyQuery,
   externalTarget,
   faceKey,
+  gitRepoTarget,
   githubFromUrl,
   gitlabFromUrl,
   issueKey,
@@ -56,6 +57,24 @@ describe("Jira links and keys (EXTERNAL-TRACKER-SPEC §3.1)", () => {
     expect(externalTarget("https://team.atlassian.net/browse/AB-1", [dc, cloud])).toEqual({ connectionId: "cloud", itemType: "issue", key: "AB-1" });
     expect(externalTarget("https://github.com/a/b/issues/1", [dc])).toBeNull();
     expect(externalTarget("docs/spec.md", [dc])).toBeNull();
+  });
+
+  test("a pasted git item names its repository for the §4.3 check; other families and files do not", () => {
+    expect(gitRepoTarget("https://github.com/a/b/pull/12", [gh])).toEqual({ connectionId: "gh", family: "github", key: "a/b#12", repo: "a/b" });
+    expect(gitRepoTarget("https://git.example.com/g1/g2/proj/-/merge_requests/34", [gl])).toEqual({
+      connectionId: "gl",
+      family: "gitlab",
+      key: "g1/g2/proj!34",
+      repo: "g1/g2/proj",
+    });
+    expect(gitRepoTarget("a/b#12", [gh])).toEqual({ connectionId: "gh", family: "github", key: "a/b#12", repo: "a/b" });
+    // Ambiguous between two git connections: neither can be named, same as the daemon's recognize.
+    expect(gitRepoTarget("a/b#12", [gh, gl])).toBeNull();
+    // A Jira item resolves but has no repository; a Confluence link is a page lookup.
+    expect(gitRepoTarget("AB-1", [dc, gh, wiki])).toBeNull();
+    expect(gitRepoTarget("https://confluence.example.com/display/ENG/Search+Design%20Notes", [wiki])).toBeNull();
+    expect(gitRepoTarget("docs/spec.md", [gh, dc])).toBeNull();
+    expect(gitRepoTarget("https://github.com/a/b", [gh])).toBeNull();
   });
 
   test("base URLs keep the context path and drop credentials and trailing slashes", () => {

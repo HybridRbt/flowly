@@ -150,13 +150,13 @@ GitHub 和 GitLab 上的“全站搜索”结果太杂。daemon 从卡片所在�
 
 项目仓库 = 项目根本身（若是 git 仓库）以及其一级子目录中的 git 仓库（覆盖 linked root 的 symlink）。用 `git remote get-url` 读取所有 remote（参数数组，不经 shell），只保留 host 与连接地址一致的。结果按项目缓存 5 分钟。RPC `connectors.search` 增加可选 `projectId`。
 
-建卡/挂接时的仓库归属校验（2026-11-05）：New task 表单（§8.2）与卡片侧栏的挂接选择器（§8.1）在选中一个 GitHub/GitLab 条目时，先用 RPC `connectors.repo-check`（输入 `projectId`、`connectionId`、`repo` = 条目的 `ExternalSummary.container`）判断该仓库是否属于当前项目的项目仓库：
+建卡/挂接时的仓库归属校验（2026-11-05）：New task 表单（§8.2）与卡片侧栏的挂接选择器（§8.1）在选中一个 GitHub/GitLab 条目时，先用 RPC `connectors.repo-check`（输入 `projectId`、`connectionId`、`repo` = 条目的 `ExternalSummary.container`）判断该仓库是否属于当前项目的项目仓库。“文件或链接…”表单（§8.1）粘贴识别为 GitHub/GitLab 条目时同样校验（2026-11-05 补上）：提交前客户端用与 daemon 识别同一套纯解析（`shared/connectors.ts` 的 `gitRepoTarget`，基于 `externalTarget` + `splitRepoKey`，不发网络请求）得出 `connectionId` 与 `repo`，再调同一个 RPC；`foreign` 时显示同样的警告，“仍然添加”后才提交。
 
 - `member`：属于，直接加入；
 - `foreign`：不属于——显示非阻断警告，点名条目 key 与项目名，并说明卡片工作区不会包含该仓库；若其他项目的项目仓库包含它，点名那些项目。确认（“仍然添加”/“仍然挂接”）后才加入，取消则不加入；
 - `unknown`：项目仓库为空（该项目在该连接的 host 上读不到 git remote，无法判断）、`container` 为空或 RPC 失败——保持沉默，不打扰。
 
-非 git 族（Jira/Confluence/Azure/Shortcut）没有仓库概念，不校验。校验不依赖搜索范围：从“我参与的”范围或链接 / `owner/repo#nr` 直查选中的条目同样经过校验。Artifacts 的“文件或链接”表单粘贴条目链接的自动识别不在此校验内（那不是选择器路径）。
+非 git 族（Jira/Confluence/Azure/Shortcut）没有仓库概念，不校验。校验不依赖搜索范围：从“我参与的”范围或链接 / `owner/repo#nr` 直查选中的条目同样经过校验。粘贴路径的判定是纯解析：条目是否存在仍由 daemon 在提交时决定，识别不出（含裸 key 在多个 git 连接间歧义）、非 git 条目与文件路径直接提交，不受影响；`member`、`unknown` 与 RPC 失败同样保持沉默。编辑既有条目不校验（target 添加后固定）。
 
 ## 5. GitLab
 
@@ -221,7 +221,7 @@ GitLab issue 或 MR…     （有 GitLab 连接时）
 
 - 选 connector 项打开对应的选择器（现 `LinkTicket` 泛化为 `LinkExternal`），我的最近 + 搜索，选中即添加为 input，toast “Linked <key>”。多个同族连接时选择器顶部切换连接（`lastTicketConnection` 改为按族记忆：`lastConnections: Record<family, id>`，旧值迁入 jira）。
 - 选中的 GitHub/GitLab 条目不属于当前项目的项目仓库时，先出现 §4.3 的警告，确认后才挂接；否则按上一条直接添加。
-- “文件或链接…”即现在的表单；粘贴的链接属于任一已连接服务时自动识别为该条目（role 取表单所选，默认 input；2026-10-21 起不再固定为 input，agent 自己开的 PR/MR 可登记为 output）。
+- “文件或链接…”即现在的表单；粘贴的链接属于任一已连接服务时自动识别为该条目（role 取表单所选，默认 input；2026-10-21 起不再固定为 input，agent 自己开的 PR/MR 可登记为 output）。识别为 GitHub/GitLab 条目时，提交前先过 §4.3 的仓库归属警告（2026-11-05），三条挂接路径行为一致。
 - 一个连接都没有时，+ 直接打开“文件或链接”表单，表单下方一行淡色提示“也可以连接 Jira、Confluence、GitHub、GitLab”。
 
 ### 8.2 New task 表单
@@ -268,7 +268,7 @@ GitLab issue 或 MR…     （有 GitLab 连接时）
 
 - 每个 adapter 用 mock fetch：链接识别（含多级 group、子页面、锚点、tiny link、`/display/`）、裸 key、白名单之外的路径直接抛错、只发 GET、错误映射（GitHub 限流 403 不算凭据失效、GitLab 403、Confluence 登录页）、Markdown 渲染与截断、指纹（状态/标签变化不算，新 commit 算）。
 - storage → Markdown 转换器单测（代码宏、表格、info 宏、ac:link、图片）。
-- 项目仓库范围：remote 解析（ssh/https 两种写法、多 remote、symlink 子仓库）、host 不匹配时忽略；建卡/挂接校验 `repoVerdict`（大小写不敏感；空 `container` 或项目仓库为空 → `unknown` 不警告）。
+- 项目仓库范围：remote 解析（ssh/https 两种写法、多 remote、symlink 子仓库）、host 不匹配时忽略；建卡/挂接校验 `repoVerdict`（大小写不敏感；空 `container` 或项目仓库为空 → `unknown` 不警告）；粘贴路径的 `gitRepoTarget` 判定（GitHub/GitLab 链接与唯一连接的裸 key 取到 repo；非 git 族、Confluence 页、文件路径、歧义裸 key 不触发）。
 - 凭据：RPC 返回、日志、工具输出不含令牌。
 - 联调：按用户提供的令牌在 git.garena.com 与公司 Confluence 做只读验证（令牌由用户在设置页填写，agent 不接触），GitHub 用公共仓库与用户私有仓库各一个条目。
 - 按项目要求，用 full-access 的 `codex/gpt-6-luna` session 做 UI 验收（桌面与手机布局、+ 菜单、选择器、预览、删除连接后恢复），证据存 `docs/verification/connectors.md`。

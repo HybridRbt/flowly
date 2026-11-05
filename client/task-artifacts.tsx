@@ -15,8 +15,8 @@ import { FocusTarget, Marked, limitFor, useFocusTarget, useMark } from "./drawer
 import { AiMark, Actions, Button, Choices, Field, IconButton, Label, Notice, Theme, font, message, space, touch, useTheme, noFocusRing } from "./ui";
 import { t, tn } from "../shared/i18n";
 import { BrandIcon } from "./brand-icons";
-import { ExternalPreview, LinkExternal, connectionsByFamily, pickKey, itemKindLabel, linkTitles, useConnections } from "./connectors";
-import { connectorFamilies, familyOf, itemTypeOf, type ConnectorFamily } from "../shared/connectors";
+import { ExternalPreview, ForeignRepoWarning, LinkExternal, connectionsByFamily, pickKey, itemKindLabel, linkTitles, useConnections, useRepoCheck, type RepoCheck } from "./connectors";
+import { connectorFamilies, familyOf, gitRepoTarget, itemTypeOf, type ConnectorFamily } from "../shared/connectors";
 import { eventPoint, useMenuOpener, type MenuEntry } from "./context-menu";
 import { useSettingsOpener } from "./settings-opener";
 
@@ -279,17 +279,22 @@ function ArtifactForm({ task, artifact, onClose }: { task: Task; artifact: Artif
   const queryClient = useQueryClient();
   const create = useRpc(rpc.createArtifact);
   const update = useRpc(rpc.updateArtifact);
+  const connections = useConnections();
+  // A pasted item link from another project's repositories warns first (CONNECTORS-SPEC §4.3).
+  const repoCheck = useRepoCheck(task.projectId);
   const [role, setRole] = useState<ArtifactRole>(artifact?.role ?? "input");
   const [target, setTarget] = useState(artifact?.target ?? "");
   const [title, setTitle] = useState(artifact?.title ?? "");
   const [note, setNote] = useState(artifact?.note ?? "");
   const [pending, setPending] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [foreign, setForeign] = useState<{ key: string; check: RepoCheck } | null>(null);
   const [error, setError] = useState("");
-  const ready = !pending && !!target.trim();
-  const submit = async () => {
-    if (!ready) return;
+  const ready = !pending && !checking && !!target.trim();
+  const save = async () => {
     setPending(true);
     setError("");
+    setForeign(null);
     try {
       if (artifact) await update({ id: artifact.id, updatedAt: artifact.updatedAt, role, title, note });
       else await create({ taskId: task.id, role, target, title, note });
@@ -302,28 +307,51 @@ function ArtifactForm({ task, artifact, onClose }: { task: Task; artifact: Artif
       setPending(false);
     }
   };
+  const submit = async () => {
+    if (!ready) return;
+    setError("");
+    // Only a new target can be a pasted item link; an edit's target is fixed.
+    const git = artifact ? null : gitRepoTarget(target, connections.data?.connections || []);
+    if (git) {
+      setChecking(true);
+      const check = await repoCheck({ connectionId: git.connectionId, container: git.repo }, git.family);
+      setChecking(false);
+      if (check?.state === "foreign") return setForeign({ key: git.key, check });
+    }
+    await save();
+  };
   return (
     <Modal open title={artifact ? t("Edit artifact") : t("Add artifact")} onOpenChange={(open) => !open && !pending && onClose()}>
       <Modal.Content>
         <Theme.Provider value={theme}>
-          <View style={{ gap: space[3] }}>
-            {!!error && <Notice tone="danger">{error}</Notice>}
-            <Choices title={t("Role")} value={role} options={roleChoices()} onChange={setRole} />
-            <Field
-              title={t("Path or link")}
-              value={target}
-              onChange={setTarget}
-              editable={!artifact}
-              autoFocus={!artifact && !touch}
-              placeholder={t("docs/spec.md or https://…")}              onSubmit={ready ? () => void submit() : undefined}
+          {foreign ? (
+            <ForeignRepoWarning
+              itemKey={foreign.key}
+              check={foreign.check}
+              confirmLabel={t("Add anyway")}
+              onConfirm={() => void save()}
+              onCancel={() => setForeign(null)}
             />
-            <Field title={t("Title")} value={title} onChange={setTitle} placeholder={t("Defaults to the file name or link")} />
-            <Field title={t("Note")} value={note} onChange={setNote} multiline placeholder={t("What it is for")} />
-            <Actions>
-              <Button quiet onPress={onClose} disabled={pending}>{t("Cancel")}</Button>
-              <Button primary onPress={() => void submit()} disabled={!ready}>{artifact ? t("Save") : t("Add")}</Button>
-            </Actions>
-          </View>
+          ) : (
+            <View style={{ gap: space[3] }}>
+              {!!error && <Notice tone="danger">{error}</Notice>}
+              <Choices title={t("Role")} value={role} options={roleChoices()} onChange={setRole} />
+              <Field
+                title={t("Path or link")}
+                value={target}
+                onChange={setTarget}
+                editable={!artifact}
+                autoFocus={!artifact && !touch}
+                placeholder={t("docs/spec.md or https://…")}              onSubmit={ready ? () => void submit() : undefined}
+              />
+              <Field title={t("Title")} value={title} onChange={setTitle} placeholder={t("Defaults to the file name or link")} />
+              <Field title={t("Note")} value={note} onChange={setNote} multiline placeholder={t("What it is for")} />
+              <Actions>
+                <Button quiet onPress={onClose} disabled={pending}>{t("Cancel")}</Button>
+                <Button primary onPress={() => void submit()} disabled={!ready}>{artifact ? t("Save") : t("Add")}</Button>
+              </Actions>
+            </View>
+          )}
         </Theme.Provider>
       </Modal.Content>
     </Modal>

@@ -1,5 +1,12 @@
 # Implementation progress
 
+## 2026-11-05 “文件或链接…”表单粘贴 git 条目同样校验仓库归属（card “文件或链接表单粘贴 GitHub/GitLab 条目链接时同样校验仓库归属”）
+
+- 补上 [CONNECTORS-SPEC §4.3](CONNECTORS-SPEC.md#43-项目仓库范围github--gitlab) 上一卡留出的粘贴路径：Artifacts 的“文件或链接…”表单提交前，客户端用与 daemon 识别同一套纯解析判定粘贴值是否为 GitHub/GitLab 条目——`shared/connectors.ts` 新增 `gitRepoTarget`（`externalTarget` 定位连接与 key，git 族再用 `splitRepoKey` 取 repo；不发网络请求，条目存在与否仍由 daemon 在提交时决定），再复用 `useRepoCheck`/`ForeignRepoWarning`（`client/task-artifacts.tsx` 的 `ArtifactForm`：foreign 先警告，“仍然添加”后才提交，取消回到表单）。至此三条挂接路径（建卡、挂接选择器、粘贴）行为一致。
+- 沉默路径不变：member、unknown（项目仓库为空/container 空/RPC 失败）、非 git 条目、文件路径与识别不出的值（含多 git 连接间歧义的裸 key）直接提交；编辑既有条目不校验（target 添加后固定）。“仍然添加”沿用上一卡已加的目录词条，无新字符串。
+- 引导：不改导览、不加 tip（同上一卡：警告即提示，无新入口）；What's new 不加（1.9.0 条目已覆盖该能力）；遥测不加字段。
+- 已运行/未运行：见卡片 workpad。
+
 ## Session preview ui-fence notice (card "Recognize ui blocks in flowly's session preview") — 2026-11-05
 
 - ui/app fenced blocks in agent replies render as a compact collapsed notice — "Inline UI — open in Paseo to view it live" — expandable to the still-selectable source, instead of a plain code dump (`isInlineUiFence` in `client/session-markdown.ts`, `UiFenceBlock` in `client/session-content.tsx`). Detection matches genui's rule: the fence's first language word, case-insensitive, so "```ui"/"```app"/"```APP" are caught and "apples" is not. [SESSION-UX-SPEC](SESSION-UX-SPEC.md) §8 updated.
