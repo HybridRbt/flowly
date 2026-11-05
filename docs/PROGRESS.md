@@ -6,7 +6,7 @@
 - Applies everywhere `SessionMarkdown` renders (card session preview, card descriptions, artifact text). Live rendering stays out of scope by design: plugin timeline transformers only run in the host session view (confirmed again on screen — the same block renders live there).
 - One new string in all nine catalogs; fence-detection tests in `client/session-markdown.test.ts`.
 - Verified: `npm run typecheck`, `npm test` (1222 passed; one `server/tool-server.test.ts` timeout appears only under full-suite load and passes in isolation), focused vitest. Real desktop screenshot of the card session preview showing the collapsed notice: [verification/ui-fence-notice-2026-11-05](verification/ui-fence-notice-2026-11-05/).
-- UNRUN: phone preview (SM-S911B not connected via adb this session) and a pixel capture of the expanded state — the web board's lane pager made card targeting nondeterministic for automation; the expand uses the shared `Collapse`/`Chevron` components.
+- UNRUN: phone preview (SM-S911B not connected via adb this session) and a pixel capture of the expanded state — the web board's lane pager made card targeting nondeterministic for automation; the expand uses the shared `Collapse`/`Chevron` components. Superseded same day: the user confirmed the notice on the phone with the merged build ([verification/ui-fence-notice-2026-11-05/phone-preview-user-confirmed.jpg](verification/ui-fence-notice-2026-11-05/phone-preview-user-confirmed.jpg)).
 - Onboarding: no tour, tip or What's new change — the notice explains itself in context. Telemetry: no new switch or core action, so no heartbeat field.
 
 ## Search (card "搜索功能") — 2026-10-27
