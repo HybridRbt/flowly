@@ -107,14 +107,25 @@ export async function open(browser, { w, h, scheme = 'light', locale = 'en-US', 
   if (!(await clickLeaf(page, 'Flowly', { maxX: SIDEBAR_WIDTH - 20, yMax: 400, timeout: 20000 })))
     throw new Error('Flowly entry not found in the host sidebar');
   if (!(await clickLeaf(page, project, { minX: SIDEBAR_WIDTH, yMax: 160, timeout: 8000 }))) {
-    // No open tab for the project: switch through the project chooser.
-    await page.locator('button[aria-label^="All projects"]').first().click({ timeout: 8000 });
+    // No open tab for the project: switch through the project chooser. Wide layouts open it from the
+    // tab row's "All projects" chevron, compact layouts from the toolbar's "Project: …" switcher.
+    const chooser = page.locator('button[aria-label^="All projects"], button[aria-label^="Project:"]').first();
+    await chooser.click({ timeout: 8000 });
     // The chooser's rows are buttons whose accessible name is the project title; exact match keeps
     // "flowly" from matching "flowly-test" and never touches the board's "Open task …" cards.
     const row = page.getByRole('button', { name: project, exact: true }).last();
     await row.click({ timeout: 15000 });
-    if (!(await clickLeaf(page, project, { minX: SIDEBAR_WIDTH, yMax: 160, timeout: 15000 })))
-      throw new Error(`Project "${project}" did not become the open project after choosing it`);
+    // The project must now be the open one: its tab (wide) or the toolbar switcher's name (compact).
+    const active = await page.evaluate(({ project, sidebar }) => {
+      const tab = [...document.querySelectorAll('*')].find((n) => {
+        if (n.children.length || n.textContent.trim() !== project) return false;
+        const r = n.getBoundingClientRect();
+        return r.x > sidebar && r.y < 160;
+      });
+      if (tab) return true;
+      return [...document.querySelectorAll('button[aria-label]')].some((n) => n.getAttribute('aria-label').startsWith('Project: ') && n.getAttribute('aria-label').includes(project));
+    }, { project, sidebar: SIDEBAR_WIDTH });
+    if (!active) throw new Error(`Project "${project}" did not become the open project after choosing it`);
   }
   // Lanes (any locale) prove the project's board rendered; cards' names carry the locale's text.
   await page.waitForSelector('[data-testid^="lane-"], [data-testid^="card-"], [aria-label^="Open task"]', { timeout: 45000 });
@@ -125,10 +136,15 @@ export async function open(browser, { w, h, scheme = 'light', locale = 'en-US', 
 
 // Open the board card titled `title` — nothing else — and wait until its sidebar shows the title. The card's
 // accessible name starts "Open task {title}." (UI-UX-SPEC §2, automation names), so getByRole disambiguates it
-// from host session entries that reuse the title as their own text.
+// from host session entries that reuse the title as their own text. The English prefix is deliberate: open()
+// pins the locale, and a locale-free substring match could not tell a title from another card's longer title.
+// Exactly one card must match; ambiguity is an error, never a blind click on the first hit.
 export async function openCard(s, title, { timeout = 15000 } = {}) {
   const name = new RegExp(`^Open task ${title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.`);
-  const card = s.page.getByRole('button', { name }).first();
+  const card = s.page.getByRole('button', { name });
+  const found = await card.count();
+  if (found === 0) throw new Error(`No board card is titled "${title}"`);
+  if (found > 1) throw new Error(`${found} board cards are titled "${title}"; pass an unambiguous title`);
   await card.click({ timeout });
   const drawer = s.page.getByTestId('task-drawer-motion').filter({ hasText: title }).first();
   await drawer.waitFor({ state: 'visible', timeout });
