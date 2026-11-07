@@ -189,9 +189,11 @@ const UiFenceBlock = memo(function UiFenceBlock({
         }}
       >
         <Chevron open={open} title={notice} color={colors.foregroundMuted} size={14} />
-        <Label muted size={12} selectable={false}>
-          {notice}
-        </Label>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Label muted size={12} selectable={false}>
+            {notice}
+          </Label>
+        </View>
       </Pressable>
       <Collapse
         open={open}
