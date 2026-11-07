@@ -1,7 +1,6 @@
 import type { PluginTheme } from "@getpaseo/plugin";
-import { priorityLabels } from "../shared/model";
 import { Icon } from "@getpaseo/plugin/client/react-native";
-import { legacyStatus, type HistoryStatus, type Status, type Task, type TaskType } from "../shared/model";
+import { legacyStatus, priorityLabels, type HistoryStatus, type Status, type Task, type TaskType } from "../shared/model";
 import { tint, useTheme } from "./ui";
 
 type Colors = PluginTheme["colors"];
